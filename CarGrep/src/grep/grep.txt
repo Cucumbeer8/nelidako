@@ -1,0 +1,111 @@
+1:#include "s21_grep.h"
+2:#define buffer 99999
+3:#define MIN(a, b) ((a) < (b) ? (a) : (b))
+7:  int return_result = 0;
+8:  char pattern[buffer] = {0};
+9:  memset(&flg_opt, 0, sizeof(flg_opt));
+10:  return_result = parsing(argc, argv, &flg_opt, pattern);
+11:  if ((argc >= 3) && (return_result != 1)) {
+12:    grep(flg_opt, argc, argv, pattern);
+13:  } else {
+14:    return_result = -1;
+16:  return return_result;
+19:int parsing(int argc, char *argv[], struct flags *flg_opt, char *pattern) {
+20:  int i = 0, result = 0;
+21:  while ((i = getopt(argc, argv, "e:ivclnhsf:o")) != -1) {
+22:    if (i == 'e') {
+23:        flg_opt->e = 1;
+24:        snprintf(pattern, buffer, "%s", optarg);
+25:        } else if (i == 'i') {
+27:        } else if (i == 'v') {
+29:        } else if (i == 'c') {
+31:        } else if (i == 'l') {
+33:        } else if (i == 'n') {
+35:        } else if (i == 'h') {
+37:        } else if (i == 's') {
+39:        } else if (i == 'f') {
+41:        snprintf(pattern, buffer, "%s", optarg);
+42:        } else if (i == 'o') {
+44:        } else {
+45:        result = 1;
+48:  return result;
+51:void grep(struct flags flg_opt, int argc, char *argv[], char *temp) {
+52:  char pattern_new[buffer] = {0};
+55:  if (!flg_opt.f && !flg_opt.e) {
+56:    snprintf(pattern_new, buffer, "%s", argv[optind++]);
+57:  } else if (flg_opt.f) {
+58:    cols = flag_f(pattern_new);
+61:  if (!flg_opt.f && flg_opt.e) {
+62:    snprintf(pattern_new, buffer, "%s", temp);
+67:      if (flg_opt.e) {
+69:          FILE *file = fopen(pattern_new, "r");
+70:          if (file != NULL) {
+71:            char pattern[buffer];
+72:            regex_t regex;
+73:            while (fgets(pattern, buffer, file)) {
+74:              pattern[strcspn(pattern, "\n")] = '\0';
+75:              if (regcomp(&regex, pattern, 0) != 0) {
+76:                continue;
+78:              flag_e(argc, argv, argv[i], flg_opt);
+79:              regfree(&regex);
+80:              rewind(file);
+82:            fclose(file);
+84:        } else {
+85:          flag_e(argc, argv, argv[i], flg_opt);
+87:      } else {
+88:        regular(flg_opt, pattern_new, argv[i]);
+94:void flag_e(int argc, char *argv[], char *file, struct flags flg_opt) {
+96:  f = fopen(file, "r");
+98:    fprintf(stderr, "No such file or directory");
+99:  } else {
+100:    char **patterns = &argv[2];
+101:    char line[buffer - 1] = {0};
+102:    int pattern_count = argc - 3;
+103:    while (fgets(line, sizeof(line) - 1, f)) {
+104:      for (int i = 0; i < pattern_count; i++) {
+105:        if (strstr(line, patterns[i]) != NULL) {
+106:          printf("%s:", file);
+107:          printf("%s", line);
+108:          break;
+112:    fclose(f);
+116:int flag_f(char *pattern) {
+117:  FILE *file_f = fopen("pattern.regex", "r");
+119:  if (file_f == NULL) {
+120:    return 1;
+123:  // char pattern[buffer];
+124:  regex_t regex;
+125:  char line[buffer];
+127:  while (fgets(pattern, buffer, file_f)) {
+128:    pattern[strcspn(pattern, "\n")] = '\0';
+130:    if (regcomp(&regex, pattern, 0) != 0) {
+131:      continue;
+134:    while (fgets(line, buffer - 1, stdin)) {
+135:      line[strcspn(line, "\n")] = '\0';
+137:      if (regexec(&regex, line, 0, NULL, 0) == 0) {
+138:        printf("%s\n", line);
+142:    regfree(&regex);
+143:    rewind(stdin);
+146:  fclose(file_f);
+148:  return 0;
+151:void regular(struct flags flg_opt, char *pattern, char *file) {
+153:  regex_t regular;
+155:  FILE *f = fopen(file, "r");
+158:  } else {
+159:    regcomp(&regular, pattern, addiction_i);
+160:    parse_file(flg_opt, f, regular, file);
+161:    regfree(&regular);
+162:    fclose(f);
+166:void parse_file(struct flags flg_opt, FILE *f, regex_t regular, char *file) {
+167:  char line[buffer - 1] = {0};
+168:  regmatch_t pmatch[1];
+169:  int count_str = 1, count_equallys = 0;
+171:  while (fgets(line, sizeof(line) - 1, f)) {
+172:    int rewiew = regexec(&regular, line, 1, pmatch, 0);
+175:    if (rewiew == 0 && !flg_opt.v) match = 1;
+176:    if (rewiew == REG_NOMATCH && flg_opt.v) match = 1;
+180:    if (match && !flg_opt.l && !flg_opt.c && !flg_opt.o) printf("%s", line);
+183:      for (int i = pmatch[0].rm_so; i < pmatch[0].rm_eo; i++) {
+184:        printf("%c", line[i]);
+188:    count_equallys += match;
+192:  if (flg_opt.l && count_equallys > 0) printf("%s\n", file);
+193:  if (flg_opt.c && !flg_opt.l) printf("%d\n", count_equallys);
